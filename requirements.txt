@@ -1,0 +1,8 @@
+# On the Jetson, PyTorch comes pre-installed in the l4t-ml Docker image (do not reinstall it).
+ultralytics
+opencv-python
+numpy
+pandas
+roboflow
+streamlit
+pytest

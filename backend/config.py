@@ -1,0 +1,11 @@
+CONF_IGNORE = 0.40      # below this: ignored
+CONF_SURE = 0.60        # 0.40-0.60: "unsure" (grey, not counted)
+IOU_OVERLAP = 0.30      # boxes overlapping more than this -> "Spread pills out"
+SIZE_FACTOR = 2.5       # one box this many times the median area -> "Spread pills out"
+HOLD_SECONDS = 1.0      # count must stay the same this long before it is accepted
+IMG_SIZE = 640
+WEIGHTS_PATH = "models/best.pt"
+DEFAULT_TARGET = 30
+DEFAULT_BOTTLE = 30
+DEFAULT_EXPECTED = "tablet"   # change to a class name from your trained model
+DOCKER_IMAGE = "nvcr.io/nvidia/l4t-ml:r36.2.0-py3"
