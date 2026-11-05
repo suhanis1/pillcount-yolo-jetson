@@ -59,3 +59,8 @@ Uncertain detections:
 
 ## Status
 Backend code is complete and tested on the Jetson. Model training on the pill dataset is the next step, followed by the Streamlit frontend.
+
+## Notes
+- `run_image.py` and `run_webcam.py` require trained weights at `models/best.pt` (not yet added) and, for images, a photo in `sample_images/`.
+- `evaluate.py` expects a CSV with the columns `image,true_count`.
+- `requirements.txt` lists all packages for a normal Python environment. Inside the Jetson Docker image, PyTorch and OpenCV are already installed, so only the `pip install` lines above are needed.
