@@ -1,82 +1,103 @@
-# PillCount: Pill Counter and Fill Checker (YOLOv8n on NVIDIA Jetson)
+# PillCount: Pill Counter and Fill Checker
 
-DATA 690 course project. A camera detects every pill on a tray, counts them, and checks the count against a target amount.
+DATA 690 computer vision project. PillCount uses a camera to find the pills on a tray, counts them, and checks the count against a target amount. It uses a YOLOv8n model that I fine-tuned on a pill dataset, a Python backend for the counting rules, and a Streamlit page for the user interface. The project is built for the NVIDIA Jetson.
 
 ## Docker image
-`nvcr.io/nvidia/l4t-ml:r36.2.0-py3` (NVIDIA JetPack 6 / L4T ML image with PyTorch 2.1.0, CUDA and OpenCV)
 
-## Repository structure
-- `backend/`: core logic
-  - `config.py`: thresholds and defaults
-  - `detector.py`: YOLO wrapper
-  - `decisions.py`: Rules 1-3, confidence handling, overlap check, count stabilizer
-  - `pipeline.py`: `process_frame()`, the entry point the frontend will call
-- `scripts/`: `download_dataset.py`, `train.py`, `run_image.py`, `run_webcam.py`, `evaluate.py`
-- `models/`: trained weights (`best.pt`), `sample_images/`: test photos, `outputs/`: result images
-- `requirements.txt`: Python packages
+I use `nvcr.io/nvidia/l4t-ml:r36.2.0-py3` on the Jetson. It comes with PyTorch 2.1.0, CUDA and OpenCV already installed.
 
-## Setup on the Jetson
-```bash
-git clone https://github.com/suhanis1/pillcount-yolo-jetson.git
-cd pillcount-yolo-jetson
-sudo docker run -it --rm --runtime nvidia --network host \
-  --device /dev/video0 \
-  -v $(pwd):/workspace/pillcount-yolo-jetson \
-  -w /workspace/pillcount-yolo-jetson \
-  nvcr.io/nvidia/l4t-ml:r36.2.0-py3 bash
-```
-Inside the container (installed without dependencies so the GPU build of PyTorch is kept):
-```bash
-pip install --no-deps ultralytics ultralytics-thop
-pip install pyyaml tqdm scipy requests pandas psutil py-cpuinfo
-```
+## What is in this repo
 
-## Run
-```bash
-python3 scripts/run_image.py sample_images/test1.jpg --target 30 --bottle 30 --expected tablet
-python3 scripts/run_webcam.py --target 30 --bottle 30 --expected tablet
-python3 scripts/evaluate.py labels.csv
-```
+- `backend/` has the main logic.
+  - `config.py` holds the thresholds and default settings.
+  - `detector.py` wraps the YOLO model.
+  - `decisions.py` has the three rules, the confidence handling, the overlap check and the count stabilizer.
+  - `pipeline.py` has `process_frame()`, which the frontend calls.
+- `frontend/app.py` is the Streamlit page.
+- `scripts/` has `download_dataset.py`, `train.py`, `run_image.py`, `run_webcam.py` and `evaluate.py`.
+- `models/best.pt` is the trained model.
+- `outputs/` has the webcam test frame and the frontend screenshots.
+- `requirements.txt` lists the Python packages.
 
-## Decision rules
-1. Target count: total equal to target shows "Count correct"; lower shows "Short by X"; higher shows "Over by X".
-2. Wrong pill: a detection of an unexpected type shows "Wrong pill detected".
-3. Bottle batching: reports the number of full bottles that can be filled and the leftover pills.
+## How the counting works
 
-Uncertain detections:
-- Confidence below 40% is ignored; 40-60% is drawn grey as "unsure" and not counted.
-- Overlapping boxes or one oversized box shows "Spread pills out" instead of a count.
-- A count is accepted only after staying unchanged for about 1 second; no detections shows "No pills detected".
+For every image the backend runs the model, drops weak detections, counts the pills of each type and then applies three rules:
 
-## Training
-`scripts/download_dataset.py` fetches the Roboflow dataset and `scripts/train.py` fine-tunes YOLOv8n. Trained weights go in `models/best.pt`.
+1. **Target count:** if the total matches the target it shows "Count correct", otherwise "Short by X" or "Over by X".
+2. **Wrong pill:** if a detection is not the expected pill type, it shows "Wrong pill detected" and the box turns red.
+3. **Bottle batching:** it reports how many full bottles can be filled from the pills on the tray and how many are left over.
 
-## Tested so far (inside the Docker container on the Jetson)
-- PyTorch 2.1.0 with CUDA available: True
-- Ultralytics and OpenCV imports work
-- Decision logic (Rules 1-3, wrong-pill alert) returns the expected results on synthetic detections
-- USB webcam capture works (640x480); sample frame in `outputs/webcam_test.jpg`
+To handle uncertain detections:
+- Detections below 40% confidence are ignored.
+- Detections between 40% and 60% are drawn in grey as "unsure" and are not counted.
+- If boxes overlap a lot, or one box is much bigger than the rest, it shows "Spread pills out" instead of a count.
+- If nothing is found it says "No pills detected" instead of 0.
+- A count is only accepted after it stays the same for about 1 second (used in the webcam script).
 
-## Status
-Backend code is complete and tested on the Jetson. The Streamlit frontend is complete (see below). Model training on the pill dataset is in progress.
+## Model
 
-## Notes
-- `run_image.py` and `run_webcam.py` require trained weights at `models/best.pt` and, for images, a photo in `sample_images/`.
-- `evaluate.py` expects a CSV with the columns `image,true_count`.
-- `requirements.txt` lists all packages for a normal Python environment. Inside the Jetson Docker image, PyTorch and OpenCV are already installed, so only the `pip install` lines above are needed.
+I fine-tuned YOLOv8n for 40 epochs on the Roboflow Universe "PILL DETECTION" dataset, which has 2,350 images and 5 classes (damaged, empty, faulty, normal, pill). I trained it on a Google Colab T4 GPU and saved the weights as `models/best.pt`.
 
-## Frontend (Streamlit)
-Run on the MacBook (or on the Jetson inside the Docker container):
+Validation results on 352 images:
 
-    pip install streamlit
+| Class | Precision | Recall | mAP50 |
+|---|---|---|---|
+| all | 0.897 | 0.909 | 0.918 |
+| pill | 0.869 | 0.913 | 0.915 |
+| normal | 0.887 | 0.954 | 0.936 |
+| faulty | 0.905 | 0.911 | 0.928 |
+| damaged | 0.862 | 0.788 | 0.833 |
+| empty | 0.964 | 0.978 | 0.979 |
+
+The overall mAP50-95 is 0.781, and inference took about 3.6 ms per image on the T4.
+
+## Running the frontend
+
+On my MacBook:
+
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install streamlit opencv-python numpy pandas ultralytics
     streamlit run frontend/app.py
 
-Open http://localhost:8501. Features: input choice (uploaded photo, webcam snapshot, or demo mode), target count, bottle size, expected pill type, confidence slider, annotated image, per-type count table, total count, status banner (correct / short / over / wrong pill / spread pills out), and a count history that can be downloaded as CSV. Screenshots are in `outputs/frontend_screenshots/`.
+The page opens at http://localhost:8501. In the sidebar I can choose the input (uploaded photo, webcam snapshot or demo mode), the target count, the bottle size, the expected pill type and the confidence threshold. The page shows the image with boxes, a table with the count per pill type, the total in large text, a status banner and a count history that can be downloaded as a CSV file. Demo mode uses simulated detections, so the rules can be shown without a photo. Screenshots are in `outputs/frontend_screenshots/`.
 
-Demo mode uses simulated detections so the decision rules can be shown before the trained model (`models/best.pt`) is added. Upload and webcam modes use the trained model once it is present.
+## Running the backend on the Jetson
 
-## Example results (Upload photo mode, confidence threshold 0.60, expected type `normal`)
-- Photo 1: 10 round pills on a plain cloth. The app counted 6; 2 more were shown as "unsure" and 2 were not detected.
-- Photo 2: 10 round pills plus 1 oval pill. The app counted 10 ("Count correct", 1 full bottle of 10, 0 leftover); the oval pill was drawn in grey as "unsure" and not counted.
+    git clone https://github.com/suhanis1/pillcount-yolo-jetson.git
+    cd pillcount-yolo-jetson
+    sudo docker run -it --rm --runtime nvidia --network host \
+      --device /dev/video0 \
+      -v $(pwd):/workspace/pillcount-yolo-jetson \
+      -w /workspace/pillcount-yolo-jetson \
+      nvcr.io/nvidia/l4t-ml:r36.2.0-py3 bash
 
-Results vary with angle and lighting between photos, which is why the planned evaluation uses 20 piles with known counts and fine-tuning with my own labeled photos.
+Inside the container I install the packages without dependencies so the GPU build of PyTorch is not replaced:
+
+    pip install --no-deps ultralytics ultralytics-thop
+    pip install pyyaml tqdm scipy requests pandas psutil py-cpuinfo
+
+Then I can run the scripts:
+
+    python3 scripts/run_image.py sample_images/test1.jpg --target 30 --bottle 30 --expected normal
+    python3 scripts/run_webcam.py --target 30 --bottle 30 --expected normal
+    python3 scripts/evaluate.py labels.csv
+
+`evaluate.py` expects a CSV file with the columns `image,true_count`.
+
+## What I have tested so far
+
+- On the Jetson, inside the Docker container: PyTorch sees the GPU, the Ultralytics and OpenCV imports work, the decision rules give the right messages on test detections, and the USB webcam captures a 640x480 frame (`outputs/webcam_test.jpg`).
+- On the MacBook: the Streamlit page works with uploaded photos and with demo mode.
+
+Two example photos (confidence threshold 0.60, expected type `normal`):
+- Photo 1 had 10 round pills. The app counted 6, showed 2 as unsure and missed 2.
+- Photo 2 had 10 round pills and 1 oval pill. The app counted 10 ("Count correct", 1 full bottle of 10, 0 leftover) and showed the oval pill in grey as unsure.
+
+The results change with the angle and the lighting, so the count is not always exact yet.
+
+## Limitations and next steps
+
+- The dataset classes are quality-inspection labels (normal, faulty, damaged, empty, pill), not tablet and capsule types. The counter currently counts every detected class, so the wrong-pill rule only works for these classes.
+- Next I want to take my own photos with the Jetson webcam, label them in Roboflow and fine-tune the model again.
+- I also still need to run the frontend on the Jetson and test 20 piles with known counts (exact-count rate and mean absolute error).
