@@ -7,5 +7,5 @@ IMG_SIZE = 640
 WEIGHTS_PATH = "models/best.pt"
 DEFAULT_TARGET = 30
 DEFAULT_BOTTLE = 30
-DEFAULT_EXPECTED = "tablet"   # change to a class name from your trained model
+DEFAULT_EXPECTED = "normal"   # change to a class name from your trained model
 DOCKER_IMAGE = "nvcr.io/nvidia/l4t-ml:r36.2.0-py3"

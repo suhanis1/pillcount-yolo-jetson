@@ -61,7 +61,7 @@ Uncertain detections:
 Backend code is complete and tested on the Jetson. The Streamlit frontend is complete (see below). Model training on the pill dataset is in progress.
 
 ## Notes
-- `run_image.py` and `run_webcam.py` require trained weights at `models/best.pt` (not yet added) and, for images, a photo in `sample_images/`.
+- `run_image.py` and `run_webcam.py` require trained weights at `models/best.pt` and, for images, a photo in `sample_images/`.
 - `evaluate.py` expects a CSV with the columns `image,true_count`.
 - `requirements.txt` lists all packages for a normal Python environment. Inside the Jetson Docker image, PyTorch and OpenCV are already installed, so only the `pip install` lines above are needed.
 
@@ -74,3 +74,9 @@ Run on the MacBook (or on the Jetson inside the Docker container):
 Open http://localhost:8501. Features: input choice (uploaded photo, webcam snapshot, or demo mode), target count, bottle size, expected pill type, confidence slider, annotated image, per-type count table, total count, status banner (correct / short / over / wrong pill / spread pills out), and a count history that can be downloaded as CSV. Screenshots are in `outputs/frontend_screenshots/`.
 
 Demo mode uses simulated detections so the decision rules can be shown before the trained model (`models/best.pt`) is added. Upload and webcam modes use the trained model once it is present.
+
+## Example results (Upload photo mode, confidence threshold 0.60, expected type `normal`)
+- Photo 1: 10 round pills on a plain cloth. The app counted 6; 2 more were shown as "unsure" and 2 were not detected.
+- Photo 2: 10 round pills plus 1 oval pill. The app counted 10 ("Count correct", 1 full bottle of 10, 0 leftover); the oval pill was drawn in grey as "unsure" and not counted.
+
+Results vary with angle and lighting between photos, which is why the planned evaluation uses 20 piles with known counts and fine-tuning with my own labeled photos.

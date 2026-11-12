@@ -113,7 +113,7 @@ else:
         if shot is not None:
             frame = cv2.imdecode(np.frombuffer(shot.getvalue(), np.uint8), cv2.IMREAD_COLOR)
 
-expected = st.sidebar.selectbox("Expected pill type", classes)
+expected = st.sidebar.selectbox("Expected pill type", classes, index=classes.index(C.DEFAULT_EXPECTED) if C.DEFAULT_EXPECTED in classes else 0)
 
 if frame is None:
     st.info("Provide an image to begin.")
