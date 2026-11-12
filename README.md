@@ -58,9 +58,19 @@ Uncertain detections:
 - USB webcam capture works (640x480); sample frame in `outputs/webcam_test.jpg`
 
 ## Status
-Backend code is complete and tested on the Jetson. Model training on the pill dataset is the next step, followed by the Streamlit frontend.
+Backend code is complete and tested on the Jetson. The Streamlit frontend is complete (see below). Model training on the pill dataset is in progress.
 
 ## Notes
 - `run_image.py` and `run_webcam.py` require trained weights at `models/best.pt` (not yet added) and, for images, a photo in `sample_images/`.
 - `evaluate.py` expects a CSV with the columns `image,true_count`.
 - `requirements.txt` lists all packages for a normal Python environment. Inside the Jetson Docker image, PyTorch and OpenCV are already installed, so only the `pip install` lines above are needed.
+
+## Frontend (Streamlit)
+Run on the MacBook (or on the Jetson inside the Docker container):
+
+    pip install streamlit
+    streamlit run frontend/app.py
+
+Open http://localhost:8501. Features: input choice (uploaded photo, webcam snapshot, or demo mode), target count, bottle size, expected pill type, confidence slider, annotated image, per-type count table, total count, status banner (correct / short / over / wrong pill / spread pills out), and a count history that can be downloaded as CSV. Screenshots are in `outputs/frontend_screenshots/`.
+
+Demo mode uses simulated detections so the decision rules can be shown before the trained model (`models/best.pt`) is added. Upload and webcam modes use the trained model once it is present.
